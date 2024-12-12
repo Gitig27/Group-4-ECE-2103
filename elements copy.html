@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Quality and Sediment Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin: 20px 0;
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+        }
+        .status {
+            font-size: 1.2em;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .warning {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .actions {
+            margin-top: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        input.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        input.warning {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            background: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: inline-block;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Water Quality and Sediment Tracker</h1>
+        <p>Monitor water quality and sediment levels with visual feedback and warnings.</p>
+
+        <label for="waterQuality">Water Quality (1-100): </label>
+        <input type="number" id="waterQuality" min="1" max="100" value="50" class="good"><br>
+
+        <label for="sedimentLevel">Sediment Level (1-100): </label>
+        <input type="number" id="sedimentLevel" min="1" max="100" value="50" class="good"><br>
+
+        <button onclick="updateTracker()">Update</button>
+
+        <div id="statusMessage" class="status"></div>
+
+        <div class="chart-container">
+            <svg id="chart" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+
+        <div class="actions">
+            <button onclick="exportData()">Export Data</button>
+        </div>
+    </div>
+
+    <script>
+        const trackedData = [];
+
+        function updateTracker() {
+            const waterQualityInput = document.getElementById('waterQuality');
+            const sedimentLevelInput = document.getElementById('sedimentLevel');
+            const waterQuality = parseInt(waterQualityInput.value);
+            const sedimentLevel = parseInt(sedimentLevelInput.value);
+            const statusMessage = document.getElementById('statusMessage');
+
+            let message = '';
+            let statusClass = '';
+
+            if (waterQuality > 75 && sedimentLevel < 25) {
+                message = 'Excellent water quality and low sediment levels! Keep up the good work!';
+                statusClass = 'good';
+                waterQualityInput.className = 'good';
+                sedimentLevelInput.className = 'good';
+            } else if (waterQuality < 50 || sedimentLevel > 75) {
+                message = 'Warning: Poor water quality or high sediment levels detected! Take corrective measures.';
+                statusClass = 'warning';
+                waterQualityInput.className = waterQuality < 50 ? 'warning' : 'good';
+                sedimentLevelInput.className = sedimentLevel > 75 ? 'warning' : 'good';
+            } else {
+                message = 'Water quality and sediment levels are within acceptable ranges.';
+                statusClass = 'good';
+                waterQualityInput.className = 'good';
+                sedimentLevelInput.className = 'good';
+            }
+
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${statusClass}`;
+
+            // Add data to trackedData array
+            trackedData.push({
+                timestamp: new Date().toISOString(),
+                waterQuality,
+                sedimentLevel
+            });
+
+            // Update chart
+            renderChart();
+        }
+
+        function renderChart() {
+            const svg = document.getElementById('chart');
+            svg.innerHTML = ''; // Clear previous chart
+
+            const width = svg.clientWidth;
+            const height = svg.clientHeight;
+            const padding = 40;
+
+            const maxValue = 100;
+            const timestamps = trackedData.map((_, index) => index);
+
+            const scaleX = width / Math.max(1, timestamps.length - 1);
+            const scaleY = (height - padding) / maxValue;
+
+            const linePath = (data, color) => {
+                let path = '';
+                data.forEach((value, index) => {
+                    const x = index * scaleX;
+                    const y = height - padding - value * scaleY;
+                    path += index === 0 ? `M ${x},${y}` : ` L ${x},${y}`;
+                });
+                return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2" />`;
+            };
+
+            const waterQualityData = trackedData.map(d => d.waterQuality);
+            const sedimentLevelData = trackedData.map(d => d.sedimentLevel);
+
+            svg.innerHTML += linePath(waterQualityData, '#4CAF50');
+            svg.innerHTML += linePath(sedimentLevelData, '#FF5722');
+        }
+
+        function exportData() {
+            const data = trackedData.map(entry => {
+                return `Timestamp: ${entry.timestamp}, Water Quality: ${entry.waterQuality}, Sediment Level: ${entry.sedimentLevel}`;
+            }).join('\n');
+
+            const blob = new Blob([data], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'water_quality_data.txt';
+            link.click();
+        }
+
+        // Initial chart render
+        renderChart();
+    </script>
+</body>
+</html>
